@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/ShamirMaharjan/Go-Todo-App/internal/config"
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/models"
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,6 +17,15 @@ import (
 type RegisterUserRequest struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
 }
 
 func CreateUserHandler(pool *pgxpool.Pool) gin.HandlerFunc {
@@ -48,8 +61,8 @@ func CreateUserHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 		newUser, err := repository.CreateUser(pool, user)
 
 		if err != nil {
-			if err.Error() == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists" + err.Error()})
+			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists \n " + err.Error()})
 				return
 			}
 			c.JSON(http.StatusInternalServerError, err.Error())
@@ -57,6 +70,49 @@ func CreateUserHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"success": "User created successfully", "User": newUser})
+
+	}
+}
+
+func LoginHandler(pool *pgxpool.Pool, cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var loginRequest LoginRequest
+
+		if err := c.ShouldBindBodyWithJSON(&loginRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		user, err := repository.GetUserByEmail(pool, loginRequest.Email)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid credentialss"})
+			return
+		}
+
+		claims := jwt.MapClaims{
+			"user_id": user.ID,
+			"email":   user.Email,
+			"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+		tokenString, err := token.SignedString([]byte(cfg.JWT_SECRET))
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		c.JSON(http.StatusOK, LoginResponse{Token: tokenString})
 
 	}
 }
