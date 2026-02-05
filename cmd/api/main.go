@@ -6,6 +6,7 @@ import (
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/config"
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/database"
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/handlers"
+	"github.com/ShamirMaharjan/Go-Todo-App/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -55,6 +56,9 @@ func main() {
 	router.POST("/auth/register", handlers.CreateUserHandler(pool))
 
 	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
+
+	//middlew3are test route
+	router.GET("/test-route", middleware.AuthMiddleware(cfg), handlers.TestProtectHandler())
 
 	router.Run(":" + cfg.PORT)
 
