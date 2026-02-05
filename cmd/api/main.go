@@ -5,6 +5,7 @@ import (
 
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/config"
 	"github.com/ShamirMaharjan/Go-Todo-App/internal/database"
+	"github.com/ShamirMaharjan/Go-Todo-App/internal/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -40,6 +41,18 @@ func main() {
 			"database": "connected",
 		})
 	})
+
+	router.POST("/todo", handlers.CreateTodoHandler(pool))
+
+	router.GET("/todo", handlers.GetAllTodosHandler(pool))
+
+	router.GET("/todo/:id", handlers.GetTodoByIDHandler(pool))
+
+	router.PUT("/todo/:id", handlers.UpdateTodoHandler(pool))
+
+	router.DELETE("/todo/:id", handlers.DeleteTodoHandler(pool))
+
+	router.POST("/auth/register", handlers.CreateUserHandler(pool))
 
 	router.Run(":" + cfg.PORT)
 
