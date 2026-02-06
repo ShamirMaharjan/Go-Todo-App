@@ -43,19 +43,24 @@ func main() {
 		})
 	})
 
-	router.POST("/todo", handlers.CreateTodoHandler(pool))
-
-	router.GET("/todo", handlers.GetAllTodosHandler(pool))
-
-	router.GET("/todo/:id", handlers.GetTodoByIDHandler(pool))
-
-	router.PUT("/todo/:id", handlers.UpdateTodoHandler(pool))
-
-	router.DELETE("/todo/:id", handlers.DeleteTodoHandler(pool))
-
 	router.POST("/auth/register", handlers.CreateUserHandler(pool))
 
 	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
+
+	protected := router.Group("/todo")
+	protected.Use(middleware.AuthMiddleware(cfg))
+	{
+
+		protected.POST("", handlers.CreateTodoHandler(pool))
+
+		protected.GET("", handlers.GetAllTodosHandler(pool))
+
+		protected.GET("/:id", handlers.GetTodoByIDHandler(pool))
+
+		protected.PUT("/:id", handlers.UpdateTodoHandler(pool))
+
+		protected.DELETE("/:id", handlers.DeleteTodoHandler(pool))
+	}
 
 	//middlew3are test route
 	router.GET("/test-route", middleware.AuthMiddleware(cfg), handlers.TestProtectHandler())
